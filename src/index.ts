@@ -3,6 +3,7 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { GenerateVariants, GetProductInfo } from "./utils.js";
 import { ReturnProductType } from "./types.js";
 import { GetProxyList, Proxy } from "./lib/proxylist.js";
+import fs from "node:fs"
 
 /**
  *
@@ -82,6 +83,8 @@ export default async function ScrapeShein(url: string): Promise<ReturnProductTyp
         }
       } catch (error) {
         if (tries === 3) {
+          await browser.close();
+          await page.close();
           console.log('failed to scrape Product ')
           return undefined
         } else {
