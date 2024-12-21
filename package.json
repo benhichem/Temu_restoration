@@ -1,0 +1,24 @@
+{
+  "name": "temu",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "rimraf dist/ && tsc",
+    "dev": "tsc --watch",
+    "start": "tsc && node dist/index.js"
+  },
+  "author": "benhichem @coffee",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^20.14.10",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "puppeteer": "^22.13.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.5.3"
+  }
+}
