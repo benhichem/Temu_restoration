@@ -4,7 +4,6 @@ import { GenerateVariants, GetProductInfo } from "./utils.js";
 import { ReturnProductType } from "./types.js";
 import { GetProxyList, Proxy } from "./lib/proxylist.js";
 
-
 /**
  *
  * scraping shein clothing website and returns Values returns a null value incase it throws an error
@@ -44,8 +43,8 @@ export default async function ScrapeShein(url: string): Promise<ReturnProductTyp
 
     let tries = 0
     while (tries <= 3) {
+      const page = await browser.newPage();
       try {
-        const page = await browser.newPage();
 
         await page.authenticate({
           username: proxy.username,
@@ -87,10 +86,15 @@ export default async function ScrapeShein(url: string): Promise<ReturnProductTyp
           return undefined
         } else {
           console.log('[+]Something came up will try again right now ...')
+          await page.screenshot({
+            path: `attempt_${tries}.png`
+          })
           tries = tries + 1
         }
       }
     }
+
+    browser.close();
   } catch (error) {
     console.log(error);
     return undefined;
