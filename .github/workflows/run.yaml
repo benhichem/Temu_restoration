@@ -1,0 +1,26 @@
+name: Temu_proxy_test
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.16.0
+      - name: install browser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgbm1
+      - name: Install npm
+        run: npm install
+      - name: Run roll
+        timeout-minutes: 2880
+        run: npm start
+      - name: Save the generated files
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v4
