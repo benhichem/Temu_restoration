@@ -65,6 +65,9 @@ export default async function ScrapeShein(url: string): Promise<ReturnProductTyp
             images: preFinal.images,
             image: preFinal.image,
           };
+          await page.screenshot({
+            path: `successfull_attempt_${tries}.png`
+          })
           await page.close();
           await browser.close();
           return FinalResult as ReturnProductType;
@@ -81,6 +84,7 @@ export default async function ScrapeShein(url: string): Promise<ReturnProductTyp
             image: info.image
           }
         }
+
       } catch (error) {
         if (tries === 3) {
           await browser.close();
