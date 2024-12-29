@@ -1,5 +1,12 @@
 import { Page } from "puppeteer";
 import { option, Product, variant } from "./types.js"
+import axios from "axios";
+import fs from "node:fs";
+import path from "node:path"
+import FormData from "form-data";
+
+
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export async function GetPrices(
   page: Page
@@ -24,7 +31,8 @@ export async function GetPrices(
 
 
 export async function GetProductInfo(page: Page): Promise<Product> {
-  await page.exposeFunction('GetOptions', GetOptions)
+  /*   await page.exposeFunction('GetOptions', GetOptions); */
+
   const info: Product = await page.evaluate(async () => {
     let title = document.querySelector("h1.product-intro__head-name")
       ? (
@@ -229,7 +237,10 @@ export async function GenerateVariants(info: Product, Page: Page): Promise<Produ
 
 
 
-
+export function extractUrl(input: string): string | null {
+  const match = input.match(/url\("([^"]+)"\)/);
+  return match ? match[1] : null;
+}
 
 export async function GetOptions(Page: Page, info: Product) {
 
@@ -285,4 +296,190 @@ export async function GetOptions(Page: Page, info: Product) {
     return info
   }, info)
 
+}
+
+
+export async function DownloadCapImage(page: Page): Promise<string | null> {
+  return await page.evaluate(() => {
+    let backgroundimage = document.querySelector('div.pic_wrapper')
+    if (backgroundimage) {
+      return window.getComputedStyle(backgroundimage).backgroundImage
+    } else {
+      return null
+    }
+  })
+}
+
+
+/**
+ * Downloads a file from a URL and saves it locally
+ * @param {string} fileUrl - The URL of the file to download
+ * @param {string} [downloadDir='downloads'] - Directory to save the file (default: 'downloads')
+ * @param {string} [fileName] - Optional custom filename. If not provided, extracts from URL
+ * @returns {Promise<string>} - Path to the downloaded file
+ */
+export async function DownloadFile(fileUrl: string, downloadDir = 'downloads', fileName = null) {
+  try {
+    // Create downloads directory if it doesn't exist
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    // Get the filename from the URL if not provided
+    const defaultFileName = fileName || path.basename(fileUrl);
+    const filePath = path.join(downloadDir, defaultFileName);
+
+    // Download file with axios
+    const response = await axios({
+      method: 'GET',
+      url: fileUrl,
+      responseType: 'stream'
+    });
+
+    // Create write stream and pipe the response data
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    // Return promise that resolves when download completes
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => resolve(filePath));
+      writer.on('error', reject);
+    });
+  } catch (error) {
+    if (error instanceof Error)
+      throw new Error(`File download failed: ${error.message}`);
+  }
+}
+
+
+export async function Create2capReq(imagePath: string, CaptchaToken: string) {
+  const formData = new FormData();
+  formData.append('method', 'post');
+  formData.append('key', CaptchaToken);
+  formData.append('file', fs.createReadStream(imagePath));
+  formData.append('coordinatescaptcha', 1); // Enable coordinates mode
+  formData.append('json', 1);
+
+  // Upload the CAPTCHA image
+  const res = await axios.post('http://2captcha.com/in.php', formData, {
+    headers: formData.getHeaders(),
+  });
+
+  const requestId = res.data.request;
+  console.log('CAPTCHA Uploaded:', requestId);
+  return requestId;
+};
+
+export async function Get2capResullts(requestId: string, captchaToken: string) {
+  let result;
+  while (!result) {
+    await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds
+    const checkRes = await axios.get(
+      `http://2captcha.com/res.php?key=${captchaToken}&action=get&id=${requestId}&json=1`
+    );
+    if (checkRes.data.status === 1) {
+      result = checkRes.data.request;
+      console.log(result.data);
+    }
+  }
+
+  return result;
+};
+
+
+
+
+/**
+ * Clicks multiple positions within a specified element
+ * @param {puppeteer.Page} page - Puppeteer page instance
+ * @param {string} selector - CSS selector for the target element
+ * @param {Array<{x: string, y: string}>} positions - Array of x,y coordinates to click
+ * @param {Object} options - Additional options
+ * @param {number} options.delay - Delay between clicks in milliseconds (default: 100)
+ * @param {boolean} options.visualize - Whether to highlight click positions (default: false)
+ */
+export async function clickPositionsInElement(page: Page, selector: string, positions: Array<{ x: string, y: string }>, options: { delay?: number, visualize?: boolean } = {}) {
+
+  const {
+    delay = 1000,
+    visualize = false
+  } = options;
+
+  try {
+    // Wait for the element to be present
+    await page.waitForSelector(selector);
+
+    // Get the element
+    const element = await page.$(selector);
+    if (!element) {
+      throw new Error(`Element with selector "${selector}" not found`);
+    }
+
+    // Get element's bounding box
+    const boundingBox = await element.boundingBox();
+    if (!boundingBox) {
+      throw new Error('Could not get element bounding box');
+    }
+
+    // Add visualization style if enabled
+    if (visualize) {
+      await page.addStyleTag({
+        content: `
+                    .click-marker {
+                        position: absolute;
+                        width: 10px;
+                        height: 10px;
+                        background: red;
+                        border-radius: 50%;
+                        transform: translate(-50%, -50%);
+                        pointer-events: none;
+                        z-index: 10000;
+                    }
+                `
+      });
+    }
+
+    // Click each position
+    for (const position of positions) {
+      // Calculate absolute position relative to the element
+      const absoluteX = boundingBox.x + parseInt(position.x);
+      const absoluteY = boundingBox.y + parseInt(position.y);
+
+      // Validate click position is within element bounds
+      if (
+        absoluteX < boundingBox.x ||
+        absoluteX > boundingBox.x + boundingBox.width ||
+        absoluteY < boundingBox.y ||
+        absoluteY > boundingBox.y + boundingBox.height
+      ) {
+        console.warn(`Click position (${position.x}, ${position.y}) is outside element bounds`);
+        continue;
+      }
+
+      // Add visual marker if enabled
+      if (visualize) {
+        await page.evaluate(
+          ({ x, y }) => {
+            const marker = document.createElement('div');
+            marker.className = 'click-marker';
+            marker.style.left = `${x}px`;
+            marker.style.top = `${y}px`;
+            document.body.appendChild(marker);
+            setTimeout(() => marker.remove(), 1000);
+          },
+          { x: absoluteX, y: absoluteY }
+        );
+      }
+
+      // Perform the click
+      await page.mouse.click(absoluteX, absoluteY);
+
+      // Wait for specified delay
+      await sleep(delay)
+
+    }
+  } catch (error) {
+    if (error instanceof Error)
+      throw new Error(`Failed to perform clicks: ${error.message}`);
+  }
 }
