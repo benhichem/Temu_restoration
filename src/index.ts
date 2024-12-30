@@ -81,6 +81,9 @@ export default async function ScrapeShein(url: string, capApiKey: string): Promi
             console.log(capResponse);
             await clickPositionsInElement(page, 'div.pic_wrapper', capResponse);
             await page.click('div.captcha_click_confirm');
+            await page.screenshot({
+              path: `successfull_attempt_${tries}.png`
+            })
             await sleep(5000)
           }
         } 

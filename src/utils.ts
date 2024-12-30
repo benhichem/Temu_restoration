@@ -379,10 +379,9 @@ export async function Get2capResullts(requestId: string, captchaToken: string) {
     );
     if (checkRes.data.status === 1) {
       result = checkRes.data.request;
-      console.log(result.data);
+      console.log('CAPTCHA Uploaded:', result.data);
     }
   }
-
   return result;
 };
 
