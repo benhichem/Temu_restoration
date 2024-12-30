@@ -2,7 +2,7 @@ import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { clickPositionsInElement, Create2capReq, DownloadCapImage, DownloadFile, GenerateVariants, Get2capResullts, GetProductInfo } from "./utils.js";
 import { ReturnProductType } from "./types.js";
-import { GetProxyList, Proxy } from "./lib/proxylist.js";
+import { GetProxyList } from "./lib/proxylist.js";
 import fs from "node:fs"
 import { extractUrl } from "./utils.js";
 import { sleep } from "./utils.js";
@@ -30,8 +30,9 @@ function getRandomItem<T>(array: T[]): T | undefined {
 }
 
 
-export default async function ScrapeShein(url: string): Promise<ReturnProductType | undefined> {
+export default async function ScrapeShein(url: string, capApiKey: string): Promise<ReturnProductType | undefined> {
   try {
+    if (!url || !capApiKey) throw new Error('Please Provide A Temu url and CapApiKey')
 
     // GET PROXY LIST
     let proxy_list = await GetProxyList("cd2wha61t8prpiveuo6rdj3hfssvxf6aa6eu6e7t");
@@ -121,24 +122,10 @@ export default async function ScrapeShein(url: string): Promise<ReturnProductTyp
         }
 
       } catch (error) {
-
-        if (tries === 1) {
-        //await browser.close();
-        // await page.close();
-        /*    const x = await page.evaluate(() => {
-             const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
-             const a = document.createElement('a');
-             a.href = URL.createObjectURL(blob);
-             a.download = 'saved_page.html';
-             a.click();
-           }) */
-        // Save the current state of the page
-        /* const content = await page.content(); */
-
-        /*     require('fs').writeFileSync('saved_page.html', content); */
-        /*          fs.writeFileSync('save_page.html', content) */
-
+        if (tries === 3) {
           console.log('failed to scrape Product ')
+          await browser.close();
+          await page.close();
           return undefined
         } else {
           console.log('[+]Something came up will try again right now ...')
@@ -165,4 +152,4 @@ let ProductUrl3 = "https://www.shein.com/SHEIN-Essnce-Plus-Size-Spring-Summer-Ca
 let ProductUrl4_With_otherOptions = "https://www.shein.com/SHEIN-Priv-Women-s-Ink-Floral-Print-Puff-Sleeve-Shirt-p-26133511.html?mallCode=1&imgRatio=3-4"
 
 
-console.log(await ScrapeShein(ProductUrl4_With_otherOptions))
+console.log(await ScrapeShein(ProductUrl4_With_otherOptions, API_KEY))
